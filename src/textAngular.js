@@ -2,13 +2,13 @@
 @license textAngular
 Author : Austin Anderson
 License : 2013 MIT
-Version 1.3.9
+Version 1.3.11
 
 See README.md or https://github.com/fraywing/textAngular/wiki for requirements and use.
 */
 
 (function(){ // encapsulate all variables so they don't become global vars
-"Use Strict";					
+"use strict";					
 // IE version detection - http://stackoverflow.com/questions/4169160/javascript-ie-detection-why-not-use-simple-conditional-comments
 // We need this as IE sometimes plays funny tricks with the contenteditable.
 // ----------------------------------------------------------
@@ -98,7 +98,7 @@ function validElementString(string){
 	Custom stylesheet for the placeholders rules.
 	Credit to: http://davidwalsh.name/add-rules-stylesheets
 */
-var sheet, addCSSRule, removeCSSRule, _addCSSRule, _removeCSSRule;
+var sheet, addCSSRule, removeCSSRule, _addCSSRule, _removeCSSRule, _getRuleIndex;
 /* istanbul ignore else: IE <8 test*/
 if(_browserDetect.ie > 8 || _browserDetect.ie === undefined){
 	var _sheets = document.styleSheets;
@@ -135,9 +135,9 @@ if(_browserDetect.ie > 8 || _browserDetect.ie === undefined){
 	};
 	_addCSSRule = function(_sheet, selector, rules){
 		var insertIndex;
-		
+		var insertedRule;
 		// This order is important as IE 11 has both cssRules and rules but they have different lengths - cssRules is correct, rules gives an error in IE 11
-		/* istanbul ignore else: firefox catch */
+		/* istanbul ignore next: browser catches */
 		if(_sheet.cssRules) insertIndex = Math.max(_sheet.cssRules.length - 1, 0);
 		else if(_sheet.rules) insertIndex = Math.max(_sheet.rules.length - 1, 0);
 		
@@ -148,19 +148,35 @@ if(_browserDetect.ie > 8 || _browserDetect.ie === undefined){
 		else {
 			_sheet.addRule(selector, rules, insertIndex);
 		}
-		// return the index of the stylesheet rule
-		return insertIndex;
+		/* istanbul ignore next: browser catches */
+		if(sheet.rules) insertedRule = sheet.rules[insertIndex];
+		else if(sheet.cssRules) insertedRule = sheet.cssRules[insertIndex];
+		// return the inserted stylesheet rule
+		return insertedRule;
 	};
 
-	removeCSSRule = function(index){
-		_removeCSSRule(sheet, index);
+	_getRuleIndex = function(rule, rules) {
+		var i, ruleIndex;
+		for (i=0; i < rules.length; i++) {
+			/* istanbul ignore else: check for correct rule */
+			if (rules[i].cssText === rule.cssText) {
+				ruleIndex = i;
+				break;
+			}
+		}
+		return ruleIndex;
 	};
-	_removeCSSRule = function(sheet, index){
-		/* istanbul ignore else: untestable IE option */
+
+	removeCSSRule = function(rule){
+		_removeCSSRule(sheet, rule);
+	};
+	/* istanbul ignore next: tests are browser specific */
+	_removeCSSRule = function(sheet, rule){
+		var ruleIndex = _getRuleIndex(rule, sheet.cssRules || sheet.rules);
 		if(sheet.removeRule){
-			sheet.removeRule(index);
+			sheet.removeRule(ruleIndex);
 		}else{
-			sheet.deleteRule(index);
+			sheet.deleteRule(ruleIndex);
 		}
 	};
 }
@@ -227,7 +243,7 @@ angular.module('textAngular.factories', [])
 		} else return html;
 	};
 	return taFixChrome;
-}).factory('taSanitize', ['$sanitize', 'taDOM', function taSanitizeFactory($sanitize, taDOM){
+}).factory('taSanitize', ['$sanitize', function taSanitizeFactory($sanitize){
 
 	var convert_infos = [
 		{
@@ -245,7 +261,7 @@ angular.module('textAngular.factories', [])
 	var styleMatch = [];
 	for(var i = 0; i < convert_infos.length; i++){
 		var _partialStyle = '(' + convert_infos[i].property + ':\\s*(';
-		for(j = 0; j < convert_infos[i].values.length; j++){
+		for(var j = 0; j < convert_infos[i].values.length; j++){
 			/* istanbul ignore next: not needed to be tested yet */
 			if(j > 0) _partialStyle += '|';
 			_partialStyle += convert_infos[i].values[j];
@@ -276,9 +292,9 @@ angular.module('textAngular.factories', [])
 	
 	function transformLegacyStyles(html){
 		if(!html || !angular.isString(html) || html.length <= 0) return html;
-		var i, j;
+		var i;
 		var styleElementMatch = /<([^>\/]+?)style=("([^"]+)"|'([^']+)')([^>]*)>/ig;
-		var match, styleVal, newTag, lastNewTag = '', newHtml, finalHtml = '', lastIndex = 0;
+		var match, subMatch, styleVal, newTag, lastNewTag = '', newHtml, finalHtml = '', lastIndex = 0;
 		while(match = styleElementMatch.exec(html)){
 			// one of the quoted values ' or "
 			/* istanbul ignore next: quotations match */
@@ -334,7 +350,7 @@ angular.module('textAngular.factories', [])
 			// record last index after this tag
 			lastIndex = match.index + match[0].length;
 			// construct tag without the align attribute
-			newTag = '<' + match[1] + match[5];
+			var newTag = '<' + match[1] + match[5];
 			// add the style attribute
 			if(/style=("([^"]+)"|'([^']+)')/ig.test(newTag)){
 				/* istanbul ignore next: quotations match */
@@ -377,7 +393,7 @@ angular.module('textAngular.factories', [])
 		// Do processing for <pre> tags, removing tabs and return carriages outside of them
 		
 		var _preTags = safe.match(/(<pre[^>]*>.*?<\/pre[^>]*>)/ig);
-		processedSafe = safe.replace(/(&#(9|10);)*/ig, '');
+		var processedSafe = safe.replace(/(&#(9|10);)*/ig, '');
 		var re = /<pre[^>]*>.*?<\/pre[^>]*>/ig;
 		var index = 0;
 		var lastIndex = 0;
@@ -738,7 +754,7 @@ function($window, $document, taDOM){
 		// from http://stackoverflow.com/questions/6690752/insert-html-at-caret-in-a-contenteditable-div
 		// topNode is the contenteditable normally, all manipulation MUST be inside this.
 		insertHtml: function(html, topNode){
-			var parent, secondParent, _childI, nodes, startIndex, startNodes, endNodes, i, lastNode, _tempFrag;
+			var parent, secondParent, _childI, nodes, i, lastNode, _tempFrag;
 			var element = angular.element("<div>" + html + "</div>");
 			var range = rangy.getSelection().getRangeAt(0);
 			var frag = _document.createDocumentFragment();
@@ -1385,7 +1401,7 @@ angular.module('textAngular.taBind', ['textAngular.factories', 'textAngular.DOM'
 						element.addClass('processing-paste');
 						var pastedContent;
 						var clipboardData = (e.originalEvent || e).clipboardData;
-						if (clipboardData && clipboardData.getData) {// Webkit - get data from clipboard, put into editdiv, cleanup, then cancel event
+						if (clipboardData && clipboardData.getData && clipboardData.types.length > 0) {// Webkit - get data from clipboard, put into editdiv, cleanup, then cancel event
 							var _types = "";
 							for(var _t = 0; _t < clipboardData.types.length; _t++){
 								_types += " " + clipboardData.types[_t];
@@ -1410,8 +1426,8 @@ angular.module('textAngular.taBind', ['textAngular.factories', 'textAngular.DOM'
 								// restore selection
 								$window.rangy.restoreSelection(_savedSelection);
 								processpaste(_tempDiv[0].innerHTML);
-								_tempDiv.remove();
 								element[0].focus();
+								_tempDiv.remove();
 							}, 0);
 						}
 					});
@@ -1440,6 +1456,7 @@ angular.module('textAngular.taBind', ['textAngular.factories', 'textAngular.DOM'
 								}
 							/* istanbul ignore next: difficult to test as can't seem to select */
 							}else if(event.keyCode === 13 && !event.shiftKey){
+								var $selection;
 								var selection = taSelection.getSelectionElement();
 								if(!selection.tagName.match(VALIDELEMENTS)) return;
 								var _new = angular.element(_defaultVal);
@@ -1520,12 +1537,12 @@ angular.module('textAngular.taBind', ['textAngular.factories', 'textAngular.DOM'
 
 					// Placeholders not supported on ie 8 and below
 					if(attrs.placeholder && (_browserDetect.ie > 8 || _browserDetect.ie === undefined)){
-						var ruleIndex;
-						if(attrs.id) ruleIndex = addCSSRule('#' + attrs.id + '.placeholder-text:before', 'content: "' + attrs.placeholder + '"');
+						var rule;
+						if(attrs.id) rule = addCSSRule('#' + attrs.id + '.placeholder-text:before', 'content: "' + attrs.placeholder + '"');
 						else throw('textAngular Error: An unique ID is required for placeholders to work');
 
 						scope.$on('$destroy', function(){
-							removeCSSRule(ruleIndex);
+							removeCSSRule(rule);
 						});
 					}
 
@@ -1833,7 +1850,7 @@ textAngular.directive("textAngular", [
 				var _keydown, _keyup, _keypress, _mouseup, _focusin, _focusout,
 					_originalContents, _toolbars,
 					_serial = (attrs.serial) ? attrs.serial : Math.floor(Math.random() * 10000000000000000),
-					_taExecCommand, _resizeMouseDown;
+					_taExecCommand, _resizeMouseDown, _updateSelectedStylesTimeout;
 				
 				scope._name = (attrs.name) ? attrs.name : 'textAngularEditor' + _serial;
 
@@ -2298,13 +2315,15 @@ textAngular.directive("textAngular", [
 				// loop through all the tools polling their activeState function if it exists
 				scope.updateSelectedStyles = function(){
 					var _selection;
+					/* istanbul ignore next: This check is to ensure multiple timeouts don't exist */
+					if(_updateSelectedStylesTimeout) $timeout.cancel(_updateSelectedStylesTimeout);
 					// test if the common element ISN'T the root ta-text node
 					if((_selection = taSelection.getSelectionElement()) !== undefined && _selection.parentNode !== scope.displayElements.text[0]){
 						_toolbars.updateSelectedStyles(angular.element(_selection));
 					}else _toolbars.updateSelectedStyles();
 					// used to update the active state when a key is held down, ie the left arrow
 					/* istanbul ignore else: browser only check */
-					if(scope._bUpdateSelectedStyles) $timeout(scope.updateSelectedStyles, 200);
+					if(scope._bUpdateSelectedStyles) _updateSelectedStylesTimeout = $timeout(scope.updateSelectedStyles, 200);
 				};
 				// start updating on keydown
 				_keydown = function(){
