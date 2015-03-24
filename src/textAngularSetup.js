@@ -11,7 +11,7 @@ angular.module('textAngularSetup', [])
 // Here we set up the global display defaults, to set your own use a angular $provider#decorator.
 .value('taOptions',  {
 	toolbar: [
-		['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'pre', 'quote'],
+		['section','subsection',/*'h1', 'h2', 'h3', 'h4', 'h5', 'h6',*/ 'p', 'pre', 'quote'],
 		['bold', 'italics', 'underline', 'strikeThrough', 'ul', 'ol', 'redo', 'undo', 'clear'],
 		['justifyLeft','justifyCenter','justifyRight','indent','outdent'],
 		['html', 'insertImage', 'insertLink', 'insertVideo', 'wordcount', 'charcount']
@@ -186,19 +186,38 @@ angular.module('textAngularSetup', [])
 	});
 	// add the Header tools
 	// convenience functions so that the loop works correctly
-	var _retActiveStateFunction = function(q){
-		return function(){ return this.$editor().queryFormatBlockState(q); };
-	};
-	var headerAction = function(){
-		return this.$editor().wrapSelection("formatBlock", "<" + this.name.toUpperCase() +">");
-	};
-	angular.forEach(['h1','h2','h3','h4','h5','h6'], function(h){
-		taRegisterTool(h.toLowerCase(), {
-			buttontext: h.toUpperCase(),
-			tooltiptext: taTranslations.heading.tooltip + h.charAt(1),
-			action: headerAction,
-			activeState: _retActiveStateFunction(h.toLowerCase())
-		});
+
+	//h1-h6 auskommentiert
+	/*	var _retActiveStateFunction = function(q){
+			return function(){ return this.$editor().queryFormatBlockState(q); };
+		};
+		var headerAction = function(){
+			return this.$editor().wrapSelection("formatBlock", "<" + this.name.toUpperCase() +">");
+		};
+		angular.forEach(['h1','h2','h3','h4','h5','h6'], function(h){
+			taRegisterTool(h.toLowerCase(), {
+				buttontext: h.toUpperCase(),
+				tooltiptext: taTranslations.heading.tooltip + h.charAt(1),
+				action: headerAction,
+				activeState: _retActiveStateFunction(h.toLowerCase())
+			});
+		});*/
+	//section, subsection inserted
+	taRegisterTool('section', {
+		buttontext: 'Section',
+		// tooltiptext: taTranslations.section.tooltip,
+		action: function(){
+			return this.$editor().wrapSelection("formatBlock", "<H1>");
+		},
+		activeState: function(){ return this.$editor().queryFormatBlockState('h1'); }
+	});
+	taRegisterTool('subsection', {
+		buttontext: 'Subsection',
+		// tooltiptext: taTranslations.subsection.tooltip,
+		action: function(){
+			return this.$editor().wrapSelection("formatBlock", "<H2>");
+		},
+		activeState: function(){ return this.$editor().queryFormatBlockState('h2'); }
 	});
 	taRegisterTool('p', {
 		buttontext: 'P',
